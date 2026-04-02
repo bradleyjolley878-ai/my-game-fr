@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Advanced Shooter</title>
+<style>
+body{margin:0;overflow:hidden;background:#111;color:white;font-family:Arial}
+canvas{display:block;background:#222}
+#ui{position:fixed;top:10px;left:50%;transform:translateX(-50%);text-align:center}
+#shop{position:fixed;right:10px;top:80px;background:#000a;padding:10px;border-radius:10px}
+button{padding:6px 12px;margin:3px;border:none;border-radius:8px;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="ui">
+<h2>Advanced Shooter 🚀</h2>
+<div id="stats"></div>
+<button id="restartBtn" style="display:none;">Restart</button>
+</div>
+
+<div id="shop">
+<h4>Shop</h4>
+<button onclick="buy('laser')">Laser (5c)</button><br>
+<button onclick="buy('spread')">Spread (5c)</button><br>
+<button onclick="buy('speed')">Speed (3c)</button>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const stats=document.getElementById("stats");
+const restartBtn=document.getElementById("restartBtn");
+
+function resize(){canvas.width=innerWidth;canvas.height=innerHeight}
+addEventListener("resize",resize);resize();
+
+let player,bullets,enemies,score,coins,level,gameOver;
+let weapon="normal";
+
+function init(){
+player={x:canvas.width/2-20,y:canvas.height-60,w:40,h:40,speed:6};
+bullets=[];enemies=[];
+score=0;coins=load("coins")||0;level=1;
+gameOver=false;weapon="normal";
+restartBtn.style.display="none";
+}
+
+function save(){localStorage.setItem("coins",coins)}
+function load(k){return parseInt(localStorage.getItem(k))}
+
+function spawnEnemy(){
+enemies.push({x:Math.random()*(canvas.width-20),y:-20,size:20,speed:2+level*0.5});
+}
+
+function shoot(){
+if(weapon==="normal") bullets.push({x:player.x+18,y:player.y,vx:0});
+if(weapon==="laser") bullets.push({x:player.x+18,y:player.y,vx:0,size:4,height:20});
+if(weapon==="spread"){
+bullets.push({x:player.x+18,y:player.y,vx:-2});
+bullets.push({x:player.x+18,y:player.y,vx:0});
+bullets.push({x:player.x+18,y:player.y,vx:2});
+}
+}
+
+function update(){
+if(gameOver) return;
+ctx.clearRect(0,0,canvas.width,canvas.height);
+
+// player
+ctx.fillStyle="lime";
+ctx.fillRect(player.x,player.y,player.w,player.h);
+
+// bullets
+ctx.fillStyle="yellow";
+bullets.forEach((b,i)=>{
+b.y-=7;
+b.x+=b.vx||0;
+ctx.fillRect(b.x,b.y,5,10);
+if(b.y<0) bullets.splice(i,1);
+});
+
+// enemies
+ctx.fillStyle="red";
+enemies.forEach((e,ei)=>{
+e.y+=e.speed;
+ctx.fillRect(e.x,e.y,e.size,e.size);
+
+if(e.x<player.x+player.w&&e.x+e.size>player.x&&e.y<player.y+player.h&&e.y+e.size>player.y){
+gameOver=true;restartBtn.style.display="inline-block";save();
+}
+
+bullets.forEach((b,bi)=>{
+if(b.x<e.x+e.size&&b.x+5>e.x&&b.y<e.y+e.size&&b.y+10>e.y){
+enemies.splice(ei,1);bullets.splice(bi,1);
+score++;
+if(score%5===0) coins++;
+if(score%10===0) level++;
+}
+});
+});
+
+stats.innerText=`Score:${score} | Coins:${coins} | Level:${level} | Weapon:${weapon}`;
+
+if(!gameOver) requestAnimationFrame(update);
+else{
+ctx.fillStyle="white";
+ctx.font="40px Arial";
+ctx.fillText("Game Over",canvas.width/2-120,canvas.height/2);
+}
+}
+
+let keys={};
+addEventListener("keydown",e=>{keys[e.key]=true;if(e.key===" ") shoot();});
+addEventListener("keyup",e=>keys[e.key]=false);
+
+function move(){
+if(keys["ArrowLeft"]&&player.x>0) player.x-=player.speed;
+if(keys["ArrowRight"]&&player.x<canvas.width-player.w) player.x+=player.speed;
+requestAnimationFrame(move);
+}
+
+function buy(type){
+if(type==="laser"&&coins>=5){coins-=5;weapon="laser"}
+if(type==="spread"&&coins>=5){coins-=5;weapon="spread"}
+if(type==="speed"&&coins>=3){coins-=3;player.speed+=2}
+}
+
+restartBtn.onclick=()=>{init();update();};
+
+setInterval(spawnEnemy,800);
+
+init();update();move();
+</script>
+</body>
+</html>
