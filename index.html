@@ -9,18 +9,19 @@ canvas{display:block}
 #menu{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;background:#000c;padding:25px;border-radius:15px}
 button{padding:10px 20px;margin:10px;font-size:18px;border:none;border-radius:10px;cursor:pointer}
 #stats{position:fixed;top:10px;left:50%;transform:translateX(-50%);font-size:18px}
+#pauseBtn{position:fixed;top:10px;right:10px}
 </style>
 </head>
 <body>
 
 <div id="menu">
 <h1>🔥 INSANE SHOOTER 🔥</h1>
-<p>Move: Arrow Keys / Touch
-Auto Shoot | Survive | Upgrade</p>
+<p>Move: Arrow Keys / Touch<br>Shoot: SPACE</p>
 <button onclick="startGame()">START</button>
 </div>
 
 <div id="stats"></div>
+<button id="pauseBtn" onclick="togglePause()" style="display:none;">Pause</button>
 <canvas id="game"></canvas>
 
 <script>
@@ -28,18 +29,21 @@ const c=document.getElementById("game");
 const x=c.getContext("2d");
 const menu=document.getElementById("menu");
 const stats=document.getElementById("stats");
+const pauseBtn=document.getElementById("pauseBtn");
 
 function resize(){c.width=innerWidth;c.height=innerHeight}
 addEventListener("resize",resize);resize();
 
-let player,bullets,enemies,particles,score,coins,level,health,weapon,running;
+let player,bullets,enemies,particles,score,coins,level,health,weapon;
+let running=false,paused=false;
 
 function init(){
 player={x:c.width/2,y:c.height-80,size:20,speed:6};
 bullets=[];enemies=[];particles=[];
 score=0;coins=load("coins")||0;level=1;health=3;
 weapon=load("weapon")||"normal";
-running=true;
+running=true;paused=false;
+pauseBtn.style.display="block";
 }
 
 function save(){localStorage.setItem("coins",coins);localStorage.setItem("weapon",weapon)}
@@ -47,22 +51,29 @@ function load(k){return JSON.parse(localStorage.getItem(k))}
 
 function startGame(){menu.style.display="none";init();loop();}
 
+function togglePause(){
+paused=!paused;
+pauseBtn.innerText=paused?"Resume":"Pause";
+if(!paused) loop();
+}
+
 function spawnEnemy(){
 let type=Math.random();
-let e={x:Math.random()*c.width,y:-20,size:20,speed:2+level*0.4,type:"normal"};
-if(type>0.7){e.size=30;e.speed=1.5;e.type="tank"}
-if(type>0.9){e.speed=4;e.type="fast"}
+let e={x:Math.random()*c.width,y:-20,size:20,speed:2+level*0.4};
+if(type>0.7){e.size=30;e.speed=1.5}
+if(type>0.9){e.speed=4}
 enemies.push(e);
 }
 
 function shoot(){
+if(!running||paused) return;
 if(weapon==="normal") bullets.push({x:player.x,y:player.y,vx:0});
 if(weapon==="spread"){
 bullets.push({x:player.x,y:player.y,vx:-3});
 bullets.push({x:player.x,y:player.y,vx:0});
 bullets.push({x:player.x,y:player.y,vx:3});
 }
-if(weapon==="laser") bullets.push({x:player.x,y:player.y,vx:0,size:2});
+if(weapon==="laser") bullets.push({x:player.x,y:player.y,vx:0});
 }
 
 function particle(px,py){
@@ -70,7 +81,7 @@ particles.push({x:px,y:py,vx:(Math.random()-0.5)*4,vy:(Math.random()-0.5)*4,life
 }
 
 function loop(){
-if(!running) return;
+if(!running||paused) return;
 x.fillStyle="rgba(0,0,0,0.3)";
 x.fillRect(0,0,c.width,c.height);
 
@@ -94,15 +105,11 @@ enemies.forEach((e,ei)=>{
 e.y+=e.speed;
 x.fillRect(e.x,e.y,e.size,e.size);
 
-// hit player
 if(Math.abs(e.x-player.x)<20 && Math.abs(e.y-player.y)<20){
-health--;
-particle(e.x,e.y);
-enemies.splice(ei,1);
+health--;particle(e.x,e.y);enemies.splice(ei,1);
 if(health<=0){running=false;save();showGameOver();}
 }
 
-// bullet hit
 bullets.forEach((b,bi)=>{
 if(b.x<e.x+e.size&&b.x>e.x&&b.y<e.y+e.size&&b.y>e.y){
 score++; if(score%5===0) coins++; if(score%10===0) level++;
@@ -120,9 +127,8 @@ x.fillRect(p.x,p.y,3,3);
 if(p.life<=0) particles.splice(pi,1);
 });
 
-stats.innerText=`Score:${score} Coins:${coins} Level:${level} ❤️${health} Weapon:${weapon}`;
+stats.innerText=`Score:${score} Coins:${coins} Level:${level} ❤️${health}`;
 
-shoot();
 requestAnimationFrame(loop);
 }
 
@@ -130,11 +136,15 @@ function showGameOver(){
 menu.style.display="block";
 menu.innerHTML=`<h1>💀 GAME OVER</h1><p>Score:${score}</p>
 <button onclick='startGame()'>Restart</button>`;
+pauseBtn.style.display="none";
 }
 
-// movement
+// controls
 let keys={};
-addEventListener("keydown",e=>keys[e.key]=true);
+addEventListener("keydown",e=>{
+keys[e.key]=true;
+if(e.key===" ") shoot();
+});
 addEventListener("keyup",e=>keys[e.key]=false);
 
 c.addEventListener("touchmove",e=>{
@@ -147,11 +157,6 @@ if(keys["ArrowLeft"]) player.x-=player.speed;
 if(keys["ArrowRight"]) player.x+=player.speed;
 requestAnimationFrame(move);
 }
-
-// shop (simple auto upgrade)
-setInterval(()=>{
-if(coins>=5){weapon="spread";coins-=5}
-},5000);
 
 setInterval(spawnEnemy,700);
 
