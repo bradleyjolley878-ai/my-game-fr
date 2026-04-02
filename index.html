@@ -2,136 +2,160 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Advanced Shooter</title>
+<title>INSANE Shooter 🔥</title>
 <style>
-body{margin:0;overflow:hidden;background:#111;color:white;font-family:Arial}
-canvas{display:block;background:#222}
-#ui{position:fixed;top:10px;left:50%;transform:translateX(-50%);text-align:center}
-#shop{position:fixed;right:10px;top:80px;background:#000a;padding:10px;border-radius:10px}
-button{padding:6px 12px;margin:3px;border:none;border-radius:8px;cursor:pointer}
+body{margin:0;overflow:hidden;background:black;color:white;font-family:Arial}
+canvas{display:block}
+#menu{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;background:#000c;padding:25px;border-radius:15px}
+button{padding:10px 20px;margin:10px;font-size:18px;border:none;border-radius:10px;cursor:pointer}
+#stats{position:fixed;top:10px;left:50%;transform:translateX(-50%);font-size:18px}
 </style>
 </head>
 <body>
-<div id="ui">
-<h2>Advanced Shooter 🚀</h2>
+
+<div id="menu">
+<h1>🔥 INSANE SHOOTER 🔥</h1>
+<p>Move: Arrow Keys / Touch
+Auto Shoot | Survive | Upgrade</p>
+<button onclick="startGame()">START</button>
+</div>
+
 <div id="stats"></div>
-<button id="restartBtn" style="display:none;">Restart</button>
-</div>
-
-<div id="shop">
-<h4>Shop</h4>
-<button onclick="buy('laser')">Laser (5c)</button><br>
-<button onclick="buy('spread')">Spread (5c)</button><br>
-<button onclick="buy('speed')">Speed (3c)</button>
-</div>
-
 <canvas id="game"></canvas>
 
 <script>
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
+const c=document.getElementById("game");
+const x=c.getContext("2d");
+const menu=document.getElementById("menu");
 const stats=document.getElementById("stats");
-const restartBtn=document.getElementById("restartBtn");
 
-function resize(){canvas.width=innerWidth;canvas.height=innerHeight}
+function resize(){c.width=innerWidth;c.height=innerHeight}
 addEventListener("resize",resize);resize();
 
-let player,bullets,enemies,score,coins,level,gameOver;
-let weapon="normal";
+let player,bullets,enemies,particles,score,coins,level,health,weapon,running;
 
 function init(){
-player={x:canvas.width/2-20,y:canvas.height-60,w:40,h:40,speed:6};
-bullets=[];enemies=[];
-score=0;coins=load("coins")||0;level=1;
-gameOver=false;weapon="normal";
-restartBtn.style.display="none";
+player={x:c.width/2,y:c.height-80,size:20,speed:6};
+bullets=[];enemies=[];particles=[];
+score=0;coins=load("coins")||0;level=1;health=3;
+weapon=load("weapon")||"normal";
+running=true;
 }
 
-function save(){localStorage.setItem("coins",coins)}
-function load(k){return parseInt(localStorage.getItem(k))}
+function save(){localStorage.setItem("coins",coins);localStorage.setItem("weapon",weapon)}
+function load(k){return JSON.parse(localStorage.getItem(k))}
+
+function startGame(){menu.style.display="none";init();loop();}
 
 function spawnEnemy(){
-enemies.push({x:Math.random()*(canvas.width-20),y:-20,size:20,speed:2+level*0.5});
+let type=Math.random();
+let e={x:Math.random()*c.width,y:-20,size:20,speed:2+level*0.4,type:"normal"};
+if(type>0.7){e.size=30;e.speed=1.5;e.type="tank"}
+if(type>0.9){e.speed=4;e.type="fast"}
+enemies.push(e);
 }
 
 function shoot(){
-if(weapon==="normal") bullets.push({x:player.x+18,y:player.y,vx:0});
-if(weapon==="laser") bullets.push({x:player.x+18,y:player.y,vx:0,size:4,height:20});
+if(weapon==="normal") bullets.push({x:player.x,y:player.y,vx:0});
 if(weapon==="spread"){
-bullets.push({x:player.x+18,y:player.y,vx:-2});
-bullets.push({x:player.x+18,y:player.y,vx:0});
-bullets.push({x:player.x+18,y:player.y,vx:2});
+bullets.push({x:player.x,y:player.y,vx:-3});
+bullets.push({x:player.x,y:player.y,vx:0});
+bullets.push({x:player.x,y:player.y,vx:3});
 }
+if(weapon==="laser") bullets.push({x:player.x,y:player.y,vx:0,size:2});
 }
 
-function update(){
-if(gameOver) return;
-ctx.clearRect(0,0,canvas.width,canvas.height);
+function particle(px,py){
+particles.push({x:px,y:py,vx:(Math.random()-0.5)*4,vy:(Math.random()-0.5)*4,life:20});
+}
 
-// player
-ctx.fillStyle="lime";
-ctx.fillRect(player.x,player.y,player.w,player.h);
+function loop(){
+if(!running) return;
+x.fillStyle="rgba(0,0,0,0.3)";
+x.fillRect(0,0,c.width,c.height);
+
+// player glow
+x.shadowBlur=20;x.shadowColor="lime";
+x.fillStyle="lime";
+x.beginPath();x.arc(player.x,player.y,player.size,0,Math.PI*2);x.fill();
+x.shadowBlur=0;
 
 // bullets
-ctx.fillStyle="yellow";
+x.fillStyle="yellow";
 bullets.forEach((b,i)=>{
-b.y-=7;
-b.x+=b.vx||0;
-ctx.fillRect(b.x,b.y,5,10);
+b.y-=8;b.x+=b.vx||0;
+x.fillRect(b.x,b.y,4,10);
 if(b.y<0) bullets.splice(i,1);
 });
 
 // enemies
-ctx.fillStyle="red";
+x.fillStyle="red";
 enemies.forEach((e,ei)=>{
 e.y+=e.speed;
-ctx.fillRect(e.x,e.y,e.size,e.size);
+x.fillRect(e.x,e.y,e.size,e.size);
 
-if(e.x<player.x+player.w&&e.x+e.size>player.x&&e.y<player.y+player.h&&e.y+e.size>player.y){
-gameOver=true;restartBtn.style.display="inline-block";save();
+// hit player
+if(Math.abs(e.x-player.x)<20 && Math.abs(e.y-player.y)<20){
+health--;
+particle(e.x,e.y);
+enemies.splice(ei,1);
+if(health<=0){running=false;save();showGameOver();}
 }
 
+// bullet hit
 bullets.forEach((b,bi)=>{
-if(b.x<e.x+e.size&&b.x+5>e.x&&b.y<e.y+e.size&&b.y+10>e.y){
+if(b.x<e.x+e.size&&b.x>e.x&&b.y<e.y+e.size&&b.y>e.y){
+score++; if(score%5===0) coins++; if(score%10===0) level++;
+particle(e.x,e.y);
 enemies.splice(ei,1);bullets.splice(bi,1);
-score++;
-if(score%5===0) coins++;
-if(score%10===0) level++;
 }
 });
 });
 
-stats.innerText=`Score:${score} | Coins:${coins} | Level:${level} | Weapon:${weapon}`;
+// particles
+particles.forEach((p,pi)=>{
+p.x+=p.vx;p.y+=p.vy;p.life--;
+x.fillStyle="orange";
+x.fillRect(p.x,p.y,3,3);
+if(p.life<=0) particles.splice(pi,1);
+});
 
-if(!gameOver) requestAnimationFrame(update);
-else{
-ctx.fillStyle="white";
-ctx.font="40px Arial";
-ctx.fillText("Game Over",canvas.width/2-120,canvas.height/2);
-}
+stats.innerText=`Score:${score} Coins:${coins} Level:${level} ❤️${health} Weapon:${weapon}`;
+
+shoot();
+requestAnimationFrame(loop);
 }
 
+function showGameOver(){
+menu.style.display="block";
+menu.innerHTML=`<h1>💀 GAME OVER</h1><p>Score:${score}</p>
+<button onclick='startGame()'>Restart</button>`;
+}
+
+// movement
 let keys={};
-addEventListener("keydown",e=>{keys[e.key]=true;if(e.key===" ") shoot();});
+addEventListener("keydown",e=>keys[e.key]=true);
 addEventListener("keyup",e=>keys[e.key]=false);
 
+c.addEventListener("touchmove",e=>{
+player.x=e.touches[0].clientX;
+player.y=e.touches[0].clientY;
+});
+
 function move(){
-if(keys["ArrowLeft"]&&player.x>0) player.x-=player.speed;
-if(keys["ArrowRight"]&&player.x<canvas.width-player.w) player.x+=player.speed;
+if(keys["ArrowLeft"]) player.x-=player.speed;
+if(keys["ArrowRight"]) player.x+=player.speed;
 requestAnimationFrame(move);
 }
 
-function buy(type){
-if(type==="laser"&&coins>=5){coins-=5;weapon="laser"}
-if(type==="spread"&&coins>=5){coins-=5;weapon="spread"}
-if(type==="speed"&&coins>=3){coins-=3;player.speed+=2}
-}
+// shop (simple auto upgrade)
+setInterval(()=>{
+if(coins>=5){weapon="spread";coins-=5}
+},5000);
 
-restartBtn.onclick=()=>{init();update();};
+setInterval(spawnEnemy,700);
 
-setInterval(spawnEnemy,800);
-
-init();update();move();
+move();
 </script>
 </body>
 </html>
